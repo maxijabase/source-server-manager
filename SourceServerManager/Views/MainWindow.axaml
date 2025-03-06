@@ -1,0 +1,230 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SourceServerManager.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="SourceServerManager.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/sourceengine.ico"
+        Title="Source Server Manager">
+
+	<Design.DataContext>
+		<vm:MainWindowViewModel/>
+	</Design.DataContext>
+
+	<Grid RowDefinitions="Auto,*,Auto">
+		<!-- Main content -->
+		<SplitView Grid.Row="1" IsPaneOpen="True" DisplayMode="Inline" OpenPaneLength="300">
+			<SplitView.Pane>
+				<ListBox x:Name="ServerListBox"
+         ItemsSource="{Binding Servers}"
+         SelectedItem="{Binding SelectedServer}">
+					<!-- Context menu that appears when right-clicking the ListBox itself (not an item) -->
+					<ListBox.ContextMenu>
+						<ContextMenu>
+							<MenuItem Header="Refresh" Command="{Binding RefreshSelectedServerCommand}"/>
+							<MenuItem Header="Edit" Command="{Binding EditSelectedServerCommand}"/>
+							<MenuItem Header="Delete" Command="{Binding DeleteSelectedServerCommand}"/>
+							<Separator/>
+							<MenuItem Header="Add Server" Command="{Binding AddServerCommand}"/>
+						</ContextMenu>
+					</ListBox.ContextMenu>
+
+					<ListBox.ItemTemplate>
+						<DataTemplate>
+							<!-- No context menu on individual items - we'll use property-based commands instead -->
+							<Grid RowDefinitions="Auto,Auto" Margin="2" Width="280">
+								<!-- Server name row with checkbox and status indicator -->
+								<Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*" VerticalAlignment="Center">
+									<CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}"
+											  VerticalAlignment="Center"
+											  Margin="0,0,8,0"/>
+									<!-- Status indicator -->
+									<Ellipse Grid.Column="1"
+											 Width="12" Height="12"
+											 Margin="0,0,8,0"
+											 Fill="{Binding IsOnline, Converter={StaticResource BoolToColorConverter}}"
+											 VerticalAlignment="Center"/>
+									<!-- Server name -->
+									<TextBlock Grid.Column="2"
+											   Text="{Binding DisplayName}"
+											   VerticalAlignment="Center"
+											   TextWrapping="NoWrap"
+											   TextTrimming="CharacterEllipsis"/>
+								</Grid>
+
+								<!-- Player count and map row -->
+								<TextBlock Grid.Row="1"
+										   Text="{Binding PlayerMapInfo}"
+										   Margin="28,0,0,0"
+										   FontSize="12"
+										   Foreground="#B0B0B0"
+										   TextWrapping="NoWrap"
+										   TextTrimming="CharacterEllipsis"
+										   IsVisible="{Binding IsOnline}"/>
+							</Grid>
+						</DataTemplate>
+					</ListBox.ItemTemplate>
+				</ListBox>
+			</SplitView.Pane>
+
+			<!-- Operations panel -->
+			<TabControl SelectedIndex="{Binding SelectedTabIndex}">
+				<!-- RCON tab -->
+				<TabItem Header="RCON Commands">
+					<Grid RowDefinitions="*,Auto">
+						<!-- Console output -->
+						<TextBox Grid.Row="0" Text="{Binding ConsoleOutput}" IsReadOnly="True"
+							 AcceptsReturn="True" TextWrapping="Wrap" Margin="10"
+							 VerticalAlignment="Stretch"
+							 FontFamily="Consolas, Courier New, monospace"
+							 Background="#1E1E1E"
+							 Foreground="#DCDCDC"
+							 CaretBrush="#FFFFFF"
+							 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+
+						<!-- Command input -->
+						<DockPanel Grid.Row="1" Margin="10">
+							<Button DockPanel.Dock="Right" Content="Execute" Command="{Binding ExecuteRconCommand}" Margin="5,0,0,0"/>
+							<TextBox x:Name="CommandInput" Text="{Binding RconCommand}" Watermark="Enter RCON command..."
+									KeyDown="OnCommandInputKeyDown"/>
+						</DockPanel>
+					</Grid>
+				</TabItem>
+
+				<!-- FTP tab -->
+				<TabItem Header="FTP Upload">
+					<Grid RowDefinitions="Auto,Auto,Auto,*" Margin="10">
+						<Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,5">
+							<TextBlock Grid.Column="0" Text="Local File:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+							<TextBox Grid.Column="1" Text="{Binding LocalFilePath}" Watermark="Select file or enter path..."/>
+							<Button Grid.Column="2" Content="Browse..." Command="{Binding BrowseFileCommand}" Margin="5,0,0,0"/>
+						</Grid>
+						<Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,5">
+							<TextBlock Grid.Column="0" Text="Remote Path:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+							<TextBox Grid.Column="1" Text="{Binding RemoteFilePath}" Watermark="Enter remote path..."/>
+						</Grid>
+						<Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,5">
+							<TextBlock Grid.Column="0" Text="Browse Dir:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+							<TextBox Grid.Column="1" Text="{Binding RemoteBrowsePath}" Watermark="Enter directory to browse..."/>
+							<Button Grid.Column="2" Content="List" Command="{Binding BrowseRemoteDirectoryCommand}" Margin="5,0,0,0"/>
+						</Grid>
+						<Grid Grid.Row="3" RowDefinitions="Auto,*">
+							<Button Grid.Row="0" Content="Upload" Command="{Binding UploadFileCommand}" HorizontalAlignment="Right" Margin="0,5"/>
+							<TextBox Grid.Row="1" Text="{Binding ConsoleOutput}" IsReadOnly="True"
+                                     AcceptsReturn="True" TextWrapping="Wrap" Margin="0,5,0,0"/>
+						</Grid>
+					</Grid>
+				</TabItem>
+
+				<!-- Server Config tab -->
+				<TabItem Header="Server Configuration">
+					<ScrollViewer>
+						<StackPanel Margin="10">
+							<TextBlock Text="Select a server from the list to edit its configuration"
+                                      HorizontalAlignment="Center" Margin="0,20"
+                                      IsVisible="{Binding !SelectedServer}"/>
+
+							<!-- Server hostname and status (read-only)  -->
+							<Grid IsVisible="{Binding SelectedServer}">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="Auto"/>
+									<ColumnDefinition Width="*"/>
+								</Grid.ColumnDefinitions>
+								<Grid.RowDefinitions>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+								</Grid.RowDefinitions>
+
+								<TextBlock Grid.Row="0" Grid.Column="0" Text="Server Hostname:" Margin="0,5,5,5" FontWeight="Bold"/>
+								<TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedServer.ServerHostname}" Margin="0,5"
+                                           TextWrapping="Wrap"/>
+
+								<TextBlock Grid.Row="1" Grid.Column="0" Text="Status:" Margin="0,5,5,5" FontWeight="Bold"/>
+								<StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,5">
+									<Ellipse Width="12" Height="12" Margin="0,0,8,0"
+                                             Fill="{Binding SelectedServer.IsOnline, Converter={StaticResource BoolToColorConverter}}"/>
+									<TextBlock Text="{Binding SelectedServer.IsOnline, Converter={StaticResource BoolToStatusConverter}}"/>
+								</StackPanel>
+							</Grid>
+
+							<!-- Server config fields - without Name field -->
+							<Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+								IsVisible="{Binding SelectedServer}" Margin="0,15,0,0">
+								<!-- Connection settings -->
+								<TextBlock Grid.Row="0" Grid.Column="0" Text="IP Address:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedServer.IpAddress}" Margin="0,5"
+										 IsReadOnly="{Binding !IsEditingServer}"/>
+
+								<!-- RCON settings -->
+								<TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="RCON Settings"
+										   FontWeight="Bold" Margin="0,15,0,5"/>
+								<TextBlock Grid.Row="2" Grid.Column="0" Text="RCON Port:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedServer.RconPort}" Margin="0,5"
+										 IsReadOnly="{Binding !IsEditingServer}"/>
+								<TextBlock Grid.Row="3" Grid.Column="0" Text="RCON Password:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SelectedServer.RconPassword}"
+										 PasswordChar="*" Margin="0,5"
+										 IsReadOnly="{Binding !IsEditingServer}"/>
+
+								<!-- FTP settings -->
+								<TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Text="FTP Settings"
+										   FontWeight="Bold" Margin="0,15,0,5"/>
+								
+								<TextBlock Grid.Row="5" Grid.Column="0" Text="Protocol:" Margin="0,5,5,5"/>
+								<ComboBox Grid.Row="5" Grid.Column="1"
+										  SelectedIndex="{Binding SelectedServer.FtpProtocol}"
+										  IsEnabled="{Binding IsEditingServer}"
+										  Margin="0,5">
+									<ComboBoxItem>FTP</ComboBoxItem>
+									<ComboBoxItem>SFTP</ComboBoxItem>
+								</ComboBox>
+								
+								<TextBlock Grid.Row="6" Grid.Column="0" Text="FTP Host:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="6" Grid.Column="1" Text="{Binding SelectedServer.FtpHost}" Margin="0,5"
+										 IsReadOnly="{Binding !IsEditingServer}"/>
+								
+								<TextBlock Grid.Row="7" Grid.Column="0" Text="FTP Port:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="7" Grid.Column="1" Text="{Binding SelectedServer.FtpPort}" Margin="0,5"
+										 IsReadOnly="{Binding !IsEditingServer}"/>
+								
+								<TextBlock Grid.Row="8" Grid.Column="0" Text="FTP Username:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="8" Grid.Column="1" Text="{Binding SelectedServer.FtpUsername}" Margin="0,5"
+										 IsReadOnly="{Binding !IsEditingServer}"/>
+								
+								<TextBlock Grid.Row="9" Grid.Column="0" Text="FTP Password:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="9" Grid.Column="1" Text="{Binding SelectedServer.FtpPassword}"
+										 PasswordChar="*" Margin="0,5"
+										 IsReadOnly="{Binding !IsEditingServer}"/>
+
+								<!-- Action buttons (conditional display based on edit mode) -->
+								<StackPanel Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2"
+											Orientation="Horizontal" HorizontalAlignment="Right"
+											Margin="0,15,0,0">
+									<!-- Buttons visible when NOT in edit mode -->
+									<Button Content="Edit" Command="{Binding EditSelectedServerCommand}"
+											IsVisible="{Binding !IsEditingServer}" Margin="0,0,5,0"/>
+
+									<!-- Buttons visible when in edit mode -->
+									<Button Content="Save" Command="{Binding SaveServerEditCommand}"
+											IsVisible="{Binding IsEditingServer}" Margin="0,0,5,0"/>
+									<Button Content="Cancel" Command="{Binding CancelEditCommand}"
+											IsVisible="{Binding IsEditingServer}"/>
+								</StackPanel>
+							</Grid>
+						</StackPanel>
+					</ScrollViewer>
+				</TabItem>
+			</TabControl>
+		</SplitView>
+
+		<Grid Grid.Row="2" Height="24">
+			<StackPanel Orientation="Horizontal" Margin="10,0">
+				<TextBlock Text="{Binding StatusText}"
+						  VerticalAlignment="Center"
+						  FontWeight="Normal"/>
+			</StackPanel>
+		</Grid>
+	</Grid>
+</Window>
