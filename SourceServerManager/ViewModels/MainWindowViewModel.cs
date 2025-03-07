@@ -85,8 +85,8 @@ public class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _isEditingServer, value);
     }
 
-    private int _selectedTabIndex = 0;
-    public int SelectedTabIndex
+    private Tabs _selectedTabIndex = Tabs.RCON;
+    public Tabs SelectedTabIndex
     {
         get => _selectedTabIndex;
         set => this.RaiseAndSetIfChanged(ref _selectedTabIndex, value);
@@ -108,6 +108,7 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand ExecuteRconCommand { get; }
     public ICommand UploadFileCommand { get; }
     public ICommand BrowseFileCommand { get; }
+    public ICommand BrowseFolderCommand { get; }
     public ICommand SelectAllServersCommand { get; }
     public ICommand UnselectAllServersCommand { get; }
     public ICommand BrowseRemoteDirectoryCommand { get; }
@@ -142,6 +143,7 @@ public class MainWindowViewModel : ViewModelBase
         ExecuteRconCommand = ReactiveCommand.CreateFromTask(ExecuteRconCommandAsync);
         UploadFileCommand = ReactiveCommand.CreateFromTask(UploadFileAsync);
         BrowseFileCommand = ReactiveCommand.Create(BrowseFile);
+        BrowseFolderCommand = ReactiveCommand.Create(BrowseFolder);
         SelectAllServersCommand = ReactiveCommand.Create(() => SetAllServerSelection(true));
         UnselectAllServersCommand = ReactiveCommand.Create(() => SetAllServerSelection(false));
         BrowseRemoteDirectoryCommand = ReactiveCommand.CreateFromTask(BrowseRemoteDirectoryAsync);
@@ -248,6 +250,9 @@ public class MainWindowViewModel : ViewModelBase
         // Enter edit mode
         IsEditingServer = true;
 
+        // Send to edit tab
+        SelectedTabIndex = Tabs.ServerConfig;
+
         UpdateStatus("Adding new server. Please configure the connection settings and save.");
     }
 
@@ -257,7 +262,7 @@ public class MainWindowViewModel : ViewModelBase
         _serverBeingEdited = server;
         SelectedServer = server;
         IsEditingServer = true;
-        SelectedTabIndex = 2;
+        SelectedTabIndex = Tabs.ServerConfig;
         UpdateStatus($"Editing server: {server.DisplayName}");
     }
 
@@ -618,24 +623,36 @@ public class MainWindowViewModel : ViewModelBase
                 return;
             }
 
-            // First try to get a file
             var file = await _filesService.OpenFileAsync();
 
             if (file != null)
             {
-                // It's a file
                 LocalFilePath = file.Path.LocalPath;
                 SuggestRemotePath(LocalFilePath, isDirectory: false);
                 UpdateStatus($"Selected file: {file.Name}", temporary: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendToFTPConsole($"Error selecting file: {ex.Message}");
+            UpdateStatus("Error selecting file", temporary: true);
+        }
+    }
+
+    private async void BrowseFolder()
+    {
+        try
+        {
+            if (_filesService == null)
+            {
+                UpdateStatus("Error: File service not available");
                 return;
             }
 
-            // If no file was selected, try getting a folder
             var folder = await _filesService.OpenFolderAsync();
 
             if (folder != null)
             {
-                // It's a folder
                 LocalFilePath = folder.Path.LocalPath;
                 SuggestRemotePath(LocalFilePath, isDirectory: true);
                 UpdateStatus($"Selected folder: {folder.Name}", temporary: true);
@@ -643,8 +660,8 @@ public class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            AppendToFTPConsole($"Error selecting file/folder: {ex.Message}");
-            UpdateStatus("Error selecting file/folder", temporary: true);
+            AppendToFTPConsole($"Error selecting folder: {ex.Message}");
+            UpdateStatus("Error selecting folder", temporary: true);
         }
     }
 
@@ -755,4 +772,11 @@ public class MainWindowViewModel : ViewModelBase
 
         base.Dispose(disposing);
     }
+}
+
+public enum Tabs : int
+{
+    RCON,
+    FTP,
+    ServerConfig
 }

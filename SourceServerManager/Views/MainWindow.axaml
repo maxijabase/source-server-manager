@@ -18,11 +18,13 @@
 		<SplitView Grid.Row="1" IsPaneOpen="True" DisplayMode="Inline" OpenPaneLength="300">
 			<SplitView.Pane>
 				<ListBox x:Name="ServerListBox"
-         ItemsSource="{Binding Servers}"
-         SelectedItem="{Binding SelectedServer}">
-					<!-- Context menu that appears when right-clicking the ListBox itself (not an item) -->
+					 ItemsSource="{Binding Servers}"
+					 SelectedItem="{Binding SelectedServer}">
 					<ListBox.ContextMenu>
 						<ContextMenu>
+							<MenuItem Header="Select All" Command="{Binding SelectAllServersCommand}"/>
+							<MenuItem Header="Deselect All" Command="{Binding UnselectAllServersCommand}"/>
+							<Separator/>
 							<MenuItem Header="Refresh" Command="{Binding RefreshSelectedServerCommand}"/>
 							<MenuItem Header="Edit" Command="{Binding EditSelectedServerCommand}"/>
 							<MenuItem Header="Delete" Command="{Binding DeleteSelectedServerCommand}"/>
@@ -33,7 +35,6 @@
 
 					<ListBox.ItemTemplate>
 						<DataTemplate>
-							<!-- No context menu on individual items - we'll use property-based commands instead -->
 							<Grid RowDefinitions="Auto,Auto" Margin="2" Width="280">
 								<!-- Server name row with checkbox and status indicator -->
 								<Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*" VerticalAlignment="Center">
@@ -70,7 +71,7 @@
 			</SplitView.Pane>
 
 			<!-- Operations panel -->
-			<TabControl SelectedIndex="{Binding SelectedTabIndex}">
+			<TabControl SelectedIndex="{Binding SelectedTabIndex, Converter={StaticResource EnumToIntConverter}}">
 				<!-- RCON tab -->
 				<TabItem Header="RCON Commands">
 					<Grid RowDefinitions="*,Auto">
@@ -101,10 +102,11 @@
 				<!-- FTP tab -->
 				<TabItem Header="FTP Upload">
 					<Grid RowDefinitions="Auto,Auto,Auto,*" Margin="10">
-						<Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,5">
-							<TextBlock Grid.Column="0" Text="Local File:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-							<TextBox Grid.Column="1" Text="{Binding LocalFilePath}" Watermark="Select file or enter path..."/>
-							<Button Grid.Column="2" Content="Browse..." Command="{Binding BrowseFileCommand}" Margin="5,0,0,0"/>
+						<Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,5">
+							<TextBlock Grid.Column="0" Text="Local Path:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+							<TextBox Grid.Column="1" Text="{Binding LocalFilePath}" Watermark="Select file or folder..."/>
+							<Button Grid.Column="2" Content="Browse File..." Command="{Binding BrowseFileCommand}" Margin="5,0,5,0"/>
+							<Button Grid.Column="3" Content="Browse Folder..." Command="{Binding BrowseFolderCommand}"/>
 						</Grid>
 						<Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,5">
 							<TextBlock Grid.Column="0" Text="Remote Path:" VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -187,7 +189,7 @@
 								<!-- FTP settings -->
 								<TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Text="FTP Settings"
 										   FontWeight="Bold" Margin="0,15,0,5"/>
-								
+
 								<TextBlock Grid.Row="5" Grid.Column="0" Text="Protocol:" Margin="0,5,5,5"/>
 								<ComboBox Grid.Row="5" Grid.Column="1"
 										  SelectedIndex="{Binding SelectedServer.FtpProtocol}"
@@ -196,19 +198,19 @@
 									<ComboBoxItem>FTP</ComboBoxItem>
 									<ComboBoxItem>SFTP</ComboBoxItem>
 								</ComboBox>
-								
+
 								<TextBlock Grid.Row="6" Grid.Column="0" Text="FTP Host:" Margin="0,5,5,5"/>
 								<TextBox Grid.Row="6" Grid.Column="1" Text="{Binding SelectedServer.FtpHost}" Margin="0,5"
 										 IsReadOnly="{Binding !IsEditingServer}"/>
-								
+
 								<TextBlock Grid.Row="7" Grid.Column="0" Text="FTP Port:" Margin="0,5,5,5"/>
 								<TextBox Grid.Row="7" Grid.Column="1" Text="{Binding SelectedServer.FtpPort}" Margin="0,5"
 										 IsReadOnly="{Binding !IsEditingServer}"/>
-								
+
 								<TextBlock Grid.Row="8" Grid.Column="0" Text="FTP Username:" Margin="0,5,5,5"/>
 								<TextBox Grid.Row="8" Grid.Column="1" Text="{Binding SelectedServer.FtpUsername}" Margin="0,5"
 										 IsReadOnly="{Binding !IsEditingServer}"/>
-								
+
 								<TextBlock Grid.Row="9" Grid.Column="0" Text="FTP Password:" Margin="0,5,5,5"/>
 								<TextBox Grid.Row="9" Grid.Column="1" Text="{Binding SelectedServer.FtpPassword}"
 										 PasswordChar="*" Margin="0,5"

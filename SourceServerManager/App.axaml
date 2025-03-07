@@ -17,5 +17,6 @@
 	<Application.Resources>
 		<converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
 		<converters:BoolToStatusConverter x:Key="BoolToStatusConverter"/>
+		<converters:EnumToIntConverter x:Key="EnumToIntConverter"/>
 	</Application.Resources>
 </Application>
