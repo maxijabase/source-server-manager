@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using ReactiveUI;
 using SourceServerManager.Models;
@@ -17,13 +20,14 @@ public class MainWindowViewModel : ViewModelBase
     private readonly RconService _rconService;
     private readonly FtpService _ftpService;
     private readonly SftpService _sftpService;
+    private FilesService _filesService;
     private readonly ServerConfigurationService _configService;
     private readonly ServerStatusService _statusService;
     private readonly CommandHistoryService _commandHistoryService;
-    private Timer _statusUpdateTimer;
+    private readonly Timer _statusUpdateTimer;
     private ServerConfig _serverBeingEdited;
-    private Timer _statusClearTimer;
-    private readonly object _statusLock = new object();
+    private readonly Timer _statusClearTimer;
+    private readonly object _statusLock = new();
 
     public ObservableCollection<ServerConfig> Servers { get; } = [];
 
@@ -157,6 +161,11 @@ public class MainWindowViewModel : ViewModelBase
         // Start periodic status updates (every 30 seconds)
         _statusUpdateTimer = new Timer(async _ => await RefreshServersCommand(), null, TimeSpan.Zero, TimeSpan.FromSeconds(30));
         _statusClearTimer = new Timer(ClearStatusCallback, null, Timeout.Infinite, Timeout.Infinite);
+    }
+
+    public void SetFilesService(FilesService filesService)
+    {
+        _filesService = filesService;
     }
 
     private async Task<string> UploadFileWithCorrectServiceAsync(ServerConfig server, string localFilePath, string remoteFilePath)
@@ -508,13 +517,13 @@ public class MainWindowViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(LocalFilePath))
         {
-            UpdateStatus("Error: Please select a local file", false);
+            UpdateStatus("Error: Please select a local file or folder", false);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(RemoteFilePath))
         {
-            UpdateStatus("Error: Please enter a remote file path", false);
+            UpdateStatus("Error: Please enter a remote destination path", false);
             return;
         }
 
@@ -525,26 +534,182 @@ public class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        UpdateStatus($"Uploading file to {selectedServers.Count} server(s)...");
-
-        foreach (var server in selectedServers)
+        try
         {
-            string protocol = server.FtpProtocol == FileTransferProtocol.SFTP ? "SFTP" : "FTP";
-            UpdateStatus($"Uploading to {server.DisplayName} via {protocol}...");
+            // Automatically determine if it's a directory or a file
+            bool isDirectory = Directory.Exists(LocalFilePath);
 
-            var response = await UploadFileWithCorrectServiceAsync(server, LocalFilePath, RemoteFilePath);
-            AppendToConsole(response);
-            AppendToConsole("---");
+            if (isDirectory)
+            {
+                // It's a directory, start recursive upload
+                var files = Directory.GetFiles(LocalFilePath, "*", SearchOption.AllDirectories);
+                int totalFiles = files.Length;
+
+                UpdateStatus($"Uploading folder with {totalFiles} files to {selectedServers.Count} server(s)...");
+                AppendToConsole($"Starting upload of folder: {LocalFilePath}");
+                AppendToConsole($"Contains {totalFiles} files");
+
+                int currentFile = 0;
+                foreach (var server in selectedServers)
+                {
+                    string protocol = server.FtpProtocol == FileTransferProtocol.SFTP ? "SFTP" : "FTP";
+                    AppendToConsole($"\nUploading to {server.DisplayName} via {protocol}:");
+
+                    // Create base directory
+                    if (server.FtpProtocol == FileTransferProtocol.SFTP)
+                        await _sftpService.CreateDirectoryAsync(server, RemoteFilePath);
+                    else
+                        await _ftpService.CreateDirectoryAsync(server, RemoteFilePath);
+
+                    // Upload each file
+                    foreach (var file in files)
+                    {
+                        currentFile++;
+
+                        // Calculate the relative path from the source directory
+                        string relativePath = file.Substring(LocalFilePath.Length).TrimStart('\\', '/');
+
+                        // Combine with remote path to maintain directory structure
+                        string remoteFilePath = Path.Combine(RemoteFilePath, relativePath).Replace('\\', '/');
+
+                        // Ensure remote directory exists for this file
+                        string remoteDirectory = Path.GetDirectoryName(remoteFilePath)?.Replace('\\', '/') ?? "";
+                        if (!string.IsNullOrEmpty(remoteDirectory))
+                        {
+                            if (server.FtpProtocol == FileTransferProtocol.SFTP)
+                                await _sftpService.CreateDirectoryAsync(server, remoteDirectory);
+                            else
+                                await _ftpService.CreateDirectoryAsync(server, remoteDirectory);
+                        }
+
+                        // Update status less frequently to avoid UI lag
+                        if (currentFile % 5 == 0 || currentFile == totalFiles)
+                        {
+                            UpdateStatus($"Uploading file {currentFile}/{totalFiles} to {server.DisplayName}...");
+                            AppendToConsole($"Uploading: {relativePath}");
+                        }
+
+                        // Upload the file
+                        await UploadFileWithCorrectServiceAsync(server, file, remoteFilePath);
+                    }
+
+                    AppendToConsole($"Completed upload of {totalFiles} files to {server.DisplayName}");
+                    AppendToConsole("-------------------------------------------");
+                }
+
+                UpdateStatus($"Successfully uploaded {totalFiles} files to {selectedServers.Count} server(s)",
+                    temporary: true, clearAfterMilliseconds: 5000);
+            }
+            else
+            {
+                // It's a single file, upload directly
+                UpdateStatus($"Uploading file to {selectedServers.Count} server(s)...");
+                AppendToConsole($"Uploading file: {Path.GetFileName(LocalFilePath)}");
+
+                foreach (var server in selectedServers)
+                {
+                    string protocol = server.FtpProtocol == FileTransferProtocol.SFTP ? "SFTP" : "FTP";
+                    UpdateStatus($"Uploading to {server.DisplayName} via {protocol}...");
+
+                    // Ensure parent directory exists
+                    string remoteDirectory = Path.GetDirectoryName(RemoteFilePath)?.Replace('\\', '/') ?? "";
+                    if (!string.IsNullOrEmpty(remoteDirectory))
+                    {
+                        if (server.FtpProtocol == FileTransferProtocol.SFTP)
+                            await _sftpService.CreateDirectoryAsync(server, remoteDirectory);
+                        else
+                            await _ftpService.CreateDirectoryAsync(server, remoteDirectory);
+                    }
+
+                    // Upload the file
+                    var response = await UploadFileWithCorrectServiceAsync(server, LocalFilePath, RemoteFilePath);
+                    AppendToConsole($"Result for {server.DisplayName}: {response}");
+                    AppendToConsole("-------------------------------------------");
+                }
+
+                UpdateStatus("File upload complete", temporary: true, clearAfterMilliseconds: 3000);
+            }
         }
-
-        UpdateStatus("File upload complete");
+        catch (Exception ex)
+        {
+            AppendToConsole($"Error during upload: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                AppendToConsole($"Inner exception: {ex.InnerException.Message}");
+            }
+            UpdateStatus("Error during upload. See console for details.", false);
+        }
     }
 
-    private void BrowseFile()
+    private async void BrowseFile()
     {
-        // In a real implementation, use an OpenFileDialog
-        // For now, just set a sample path
-        LocalFilePath = @"C:\path\to\your\file.cfg";
+        try
+        {
+            if (_filesService == null)
+            {
+                AppendToConsole("Error: File service not available");
+                return;
+            }
+
+            // First try to get a file
+            var file = await _filesService.OpenFileAsync();
+
+            if (file != null)
+            {
+                // It's a file
+                LocalFilePath = file.Path.LocalPath;
+                SuggestRemotePath(LocalFilePath, isDirectory: false);
+                UpdateStatus($"Selected file: {file.Name}", temporary: true);
+                return;
+            }
+
+            // If no file was selected, try getting a folder
+            var folder = await _filesService.OpenFolderAsync();
+
+            if (folder != null)
+            {
+                // It's a folder
+                LocalFilePath = folder.Path.LocalPath;
+                SuggestRemotePath(LocalFilePath, isDirectory: true);
+                UpdateStatus($"Selected folder: {folder.Name}", temporary: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendToConsole($"Error selecting file/folder: {ex.Message}");
+            UpdateStatus("Error selecting file/folder", temporary: true);
+        }
+    }
+
+    private void SuggestRemotePath(string localPath, bool isDirectory)
+    {
+        if (string.IsNullOrEmpty(RemoteFilePath))
+        {
+            string name;
+
+            if (isDirectory)
+            {
+                // It's a directory, get the directory name
+                name = new DirectoryInfo(localPath).Name;
+            }
+            else
+            {
+                // It's a file, get the filename
+                name = Path.GetFileName(localPath);
+            }
+
+            if (SelectedServer != null && !string.IsNullOrEmpty(SelectedServer.FtpRootDirectory))
+            {
+                // Combine server's root directory with name, ensuring proper path separators
+                var rootDir = SelectedServer.FtpRootDirectory.TrimEnd('/');
+                RemoteFilePath = $"{rootDir}/{name}";
+            }
+            else
+            {
+                // Just use the name if no server selected or no root directory set
+                RemoteFilePath = name;
+            }
+        }
     }
 
     public void NavigateCommandHistoryUp()
