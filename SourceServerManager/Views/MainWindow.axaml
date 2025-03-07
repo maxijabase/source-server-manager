@@ -75,14 +75,19 @@
 				<TabItem Header="RCON Commands">
 					<Grid RowDefinitions="*,Auto">
 						<!-- Console output -->
-						<TextBox Grid.Row="0" Text="{Binding ConsoleOutput}" IsReadOnly="True"
-							 AcceptsReturn="True" TextWrapping="Wrap" Margin="10"
-							 VerticalAlignment="Stretch"
-							 FontFamily="Consolas, Courier New, monospace"
-							 Background="#1E1E1E"
-							 Foreground="#DCDCDC"
-							 CaretBrush="#FFFFFF"
-							 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+						<TextBox Grid.Row="0"
+								 Name="RconConsoleTextBox"
+								 Text="{Binding RconConsoleOutput}"
+								 IsReadOnly="True"
+								 AcceptsReturn="True"
+								 TextWrapping="Wrap"
+								 Margin="10"
+								 VerticalAlignment="Stretch"
+								 FontFamily="Consolas, Courier New, monospace"
+								 Background="#1E1E1E"
+								 Foreground="#DCDCDC"
+								 CaretBrush="#FFFFFF"
+								 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
 
 						<!-- Command input -->
 						<DockPanel Grid.Row="1" Margin="10">
@@ -112,8 +117,19 @@
 						</Grid>
 						<Grid Grid.Row="3" RowDefinitions="Auto,*">
 							<Button Grid.Row="0" Content="Upload" Command="{Binding UploadFileCommand}" HorizontalAlignment="Right" Margin="0,5"/>
-							<TextBox Grid.Row="1" Text="{Binding ConsoleOutput}" IsReadOnly="True"
-                                     AcceptsReturn="True" TextWrapping="Wrap" Margin="0,5,0,0"/>
+							<!-- Update this TextBox to match the RCON console style -->
+							<TextBox Grid.Row="1"
+									 Name="FtpConsoleTextBox"
+									 Text="{Binding FtpConsoleOutput}"
+									 IsReadOnly="True"
+									 AcceptsReturn="True"
+									 TextWrapping="Wrap"
+									 Margin="0,5,0,0"
+									 FontFamily="Consolas, Courier New, monospace"
+									 Background="#1E1E1E"
+									 Foreground="#DCDCDC"
+									 CaretBrush="#FFFFFF"
+									 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
 						</Grid>
 					</Grid>
 				</TabItem>

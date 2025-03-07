@@ -5,8 +5,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Threading;
 using ReactiveUI;
 using SourceServerManager.Models;
@@ -38,11 +36,18 @@ public class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _rconCommand, value);
     }
 
-    private string _consoleOutput = string.Empty;
-    public string ConsoleOutput
+    private string _ftpConsoleOutput = string.Empty;
+    public string FtpConsoleOutput
     {
-        get => _consoleOutput;
-        set => this.RaiseAndSetIfChanged(ref _consoleOutput, value);
+        get => _ftpConsoleOutput;
+        set => this.RaiseAndSetIfChanged(ref _ftpConsoleOutput, value);
+    }
+
+    private string _rconConsoleOutput = string.Empty;
+    public string RconConsoleOutput
+    {
+        get => _rconConsoleOutput;
+        set => this.RaiseAndSetIfChanged(ref _rconConsoleOutput, value);
     }
 
     private string _localFilePath = string.Empty;
@@ -243,7 +248,7 @@ public class MainWindowViewModel : ViewModelBase
         // Enter edit mode
         IsEditingServer = true;
 
-        AppendToConsole("Adding new server. Please configure the connection settings and save.");
+        UpdateStatus("Adding new server. Please configure the connection settings and save.");
     }
 
     private void EditServer(ServerConfig server)
@@ -253,7 +258,7 @@ public class MainWindowViewModel : ViewModelBase
         SelectedServer = server;
         IsEditingServer = true;
         SelectedTabIndex = 2;
-        AppendToConsole($"Editing server: {server.DisplayName}");
+        UpdateStatus($"Editing server: {server.DisplayName}");
     }
 
     private void DeleteServer(ServerConfig server)
@@ -275,7 +280,7 @@ public class MainWindowViewModel : ViewModelBase
             SelectedServer = null;
         }
 
-        AppendToConsole($"Server deleted: {server.DisplayName}");
+        UpdateStatus($"Server deleted: {server.DisplayName}");
     }
 
     private void DuplicateServer(ServerConfig server)
@@ -302,7 +307,7 @@ public class MainWindowViewModel : ViewModelBase
         // Select it
         SelectedServer = duplicate;
 
-        AppendToConsole($"Server duplicated: {duplicate.DisplayName}");
+        UpdateStatus($"Server duplicated: {duplicate.DisplayName}");
 
         // Save the configuration
         Task.Run(SaveConfigAsync);
@@ -313,7 +318,7 @@ public class MainWindowViewModel : ViewModelBase
         // Exit edit mode
         IsEditingServer = false;
 
-        AppendToConsole($"Server configuration saved: {SelectedServer.DisplayName}");
+        UpdateStatus($"Server configuration saved: {SelectedServer.DisplayName}");
 
         // Save the configuration
         Task.Run(SaveConfigAsync);
@@ -336,7 +341,7 @@ public class MainWindowViewModel : ViewModelBase
         IsEditingServer = false;
         _serverBeingEdited = null;
 
-        AppendToConsole("Edit canceled");
+        UpdateStatus("Edit canceled");
     }
 
     private async Task RefreshServersCommand()
@@ -347,7 +352,7 @@ public class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            AppendToConsole($"Error updating server status: {ex.Message}");
+            UpdateStatus($"Error updating server status: {ex.Message}");
         }
     }
 
@@ -359,32 +364,22 @@ public class MainWindowViewModel : ViewModelBase
 
             Dispatcher.UIThread.Post(() =>
             {
-                if (savedServers.Count > 0)
+                Servers.Clear();
+                foreach (var server in savedServers)
                 {
-                    Servers.Clear();
-                    foreach (var server in savedServers)
-                    {
-                        Servers.Add(server);
-                    }
-                    AppendToConsole($"Loaded {savedServers.Count} server configurations");
+                    Servers.Add(server);
+                }
+                UpdateStatus($"Loaded {savedServers.Count} server configurations");
 
-                    // Update status for all servers
-                    Task.Run(RefreshServersCommand);
-                }
-                else
-                {
-                    // Add sample servers if no saved servers found
-                    AddSampleServers();
-                }
+                // Update status for all servers
+                Task.Run(RefreshServersCommand);
             });
         }
         catch (Exception ex)
         {
             Dispatcher.UIThread.Post(() =>
             {
-                AppendToConsole($"Error loading server configurations: {ex.Message}");
-                // Add sample servers as fallback
-                AddSampleServers();
+                UpdateStatus($"Error loading server configurations: {ex.Message}");
             });
         }
     }
@@ -394,42 +389,12 @@ public class MainWindowViewModel : ViewModelBase
         try
         {
             await _configService.SaveServersAsync(Servers);
-            AppendToConsole("Server configurations saved successfully");
+            UpdateStatus("Server configurations saved successfully");
         }
         catch (Exception ex)
         {
-            AppendToConsole($"Error saving server configurations: {ex.Message}");
+            UpdateStatus($"Error saving server configurations: {ex.Message}");
         }
-    }
-
-    private void AddSampleServers()
-    {
-        Servers.Add(new ServerConfig
-        {
-            DisplayName = "Source Server 1", // Will be replaced by hostname once connected
-            IpAddress = "192.168.1.100",
-            RconPort = 27015,
-            RconPassword = "password1",
-            FtpHost = "192.168.1.100",
-            FtpUsername = "ftpuser1",
-            FtpPassword = "ftppass1",
-            FtpRootDirectory = "tf2"
-        });
-
-        Servers.Add(new ServerConfig
-        {
-            DisplayName = "Source Server 2", // Will be replaced by hostname once connected
-            IpAddress = "192.168.1.101",
-            RconPort = 27015,
-            RconPassword = "password2",
-            FtpHost = "192.168.1.101",
-            FtpUsername = "ftpuser2",
-            FtpPassword = "ftppass2",
-            FtpRootDirectory = "tf2"
-        });
-
-        // Update status for sample servers
-        Task.Run(RefreshServersCommand);
     }
 
     private void SetAllServerSelection(bool isSelected)
@@ -454,7 +419,7 @@ public class MainWindowViewModel : ViewModelBase
         if (RconCommand.Trim().Equals("clear", StringComparison.OrdinalIgnoreCase))
         {
             // Clear the console instead of sending to server
-            ConsoleOutput = string.Empty;
+            RconConsoleOutput = string.Empty;
             RconCommand = string.Empty;
             UpdateStatus("Console cleared");
             return;
@@ -468,26 +433,26 @@ public class MainWindowViewModel : ViewModelBase
         }
 
         // Add a timestamp and the command being executed
-        AppendToConsole($"\n[{DateTime.Now:HH:mm:ss}] Executing: {RconCommand}");
+        AppendToRCONConsole($"\n[{DateTime.Now:HH:mm:ss}] Executing: {RconCommand}");
 
         // Add a separator line before responses
-        AppendToConsole("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        AppendToRCONConsole("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
         foreach (var server in selectedServers)
         {
             // Create a more prominent, title-like header for each server
-            AppendToConsole($"\n");
+            AppendToRCONConsole($"\n");
 
             // Create top border for the title (with length matching server name)
             string topBorder = "╔" + new string('═', server.DisplayName.Length + 2) + "╗";
-            AppendToConsole(topBorder);
+            AppendToRCONConsole(topBorder);
 
             // Server name with padding
-            AppendToConsole($"║ {server.DisplayName} ║");
+            AppendToRCONConsole($"║ {server.DisplayName} ║");
 
             // Bottom border for the title (same length as top)
             string bottomBorder = "╚" + new string('═', server.DisplayName.Length + 2) + "╝";
-            AppendToConsole(bottomBorder);
+            AppendToRCONConsole(bottomBorder);
 
             // Get the response
             var response = await _rconService.ExecuteCommandAsync(server, RconCommand);
@@ -497,17 +462,17 @@ public class MainWindowViewModel : ViewModelBase
                 response.Split('\n')
                        .Select(line => "  " + line));
 
-            AppendToConsole(formattedResponse);
+            AppendToRCONConsole(formattedResponse);
 
             // Add a light separator between servers
             if (selectedServers.IndexOf(server) < selectedServers.Count - 1)
             {
-                AppendToConsole("\n┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈");
+                AppendToRCONConsole("\n┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈");
             }
         }
 
         // Add a closing separator
-        AppendToConsole("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        AppendToRCONConsole("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
         // Clear the command text after execution
         RconCommand = string.Empty;
@@ -546,14 +511,14 @@ public class MainWindowViewModel : ViewModelBase
                 int totalFiles = files.Length;
 
                 UpdateStatus($"Uploading folder with {totalFiles} files to {selectedServers.Count} server(s)...");
-                AppendToConsole($"Starting upload of folder: {LocalFilePath}");
-                AppendToConsole($"Contains {totalFiles} files");
+                AppendToFTPConsole($"Starting upload of folder: {LocalFilePath}");
+                AppendToFTPConsole($"Contains {totalFiles} files");
 
                 int currentFile = 0;
                 foreach (var server in selectedServers)
                 {
                     string protocol = server.FtpProtocol == FileTransferProtocol.SFTP ? "SFTP" : "FTP";
-                    AppendToConsole($"\nUploading to {server.DisplayName} via {protocol}:");
+                    AppendToFTPConsole($"\nUploading to {server.DisplayName} via {protocol}:");
 
                     // Create base directory
                     if (server.FtpProtocol == FileTransferProtocol.SFTP)
@@ -586,15 +551,17 @@ public class MainWindowViewModel : ViewModelBase
                         if (currentFile % 5 == 0 || currentFile == totalFiles)
                         {
                             UpdateStatus($"Uploading file {currentFile}/{totalFiles} to {server.DisplayName}...");
-                            AppendToConsole($"Uploading: {relativePath}");
+                            AppendToFTPConsole($"Uploading: {relativePath}");
                         }
 
                         // Upload the file
                         await UploadFileWithCorrectServiceAsync(server, file, remoteFilePath);
                     }
 
-                    AppendToConsole($"Completed upload of {totalFiles} files to {server.DisplayName}");
-                    AppendToConsole("-------------------------------------------");
+                    AppendToFTPConsole($"Completed upload of {totalFiles} files to {server.DisplayName}");
+                    AppendToFTPConsole("-------------------------------------------");
+
+                    currentFile = 0;
                 }
 
                 UpdateStatus($"Successfully uploaded {totalFiles} files to {selectedServers.Count} server(s)",
@@ -604,7 +571,7 @@ public class MainWindowViewModel : ViewModelBase
             {
                 // It's a single file, upload directly
                 UpdateStatus($"Uploading file to {selectedServers.Count} server(s)...");
-                AppendToConsole($"Uploading file: {Path.GetFileName(LocalFilePath)}");
+                AppendToFTPConsole($"Uploading file: {Path.GetFileName(LocalFilePath)}");
 
                 foreach (var server in selectedServers)
                 {
@@ -623,8 +590,8 @@ public class MainWindowViewModel : ViewModelBase
 
                     // Upload the file
                     var response = await UploadFileWithCorrectServiceAsync(server, LocalFilePath, RemoteFilePath);
-                    AppendToConsole($"Result for {server.DisplayName}: {response}");
-                    AppendToConsole("-------------------------------------------");
+                    AppendToFTPConsole($"Result for {server.DisplayName}: {response}");
+                    AppendToFTPConsole("-------------------------------------------");
                 }
 
                 UpdateStatus("File upload complete", temporary: true, clearAfterMilliseconds: 3000);
@@ -632,10 +599,10 @@ public class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            AppendToConsole($"Error during upload: {ex.Message}");
+            AppendToFTPConsole($"Error during upload: {ex.Message}");
             if (ex.InnerException != null)
             {
-                AppendToConsole($"Inner exception: {ex.InnerException.Message}");
+                AppendToFTPConsole($"Inner exception: {ex.InnerException.Message}");
             }
             UpdateStatus("Error during upload. See console for details.", false);
         }
@@ -647,7 +614,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             if (_filesService == null)
             {
-                AppendToConsole("Error: File service not available");
+                UpdateStatus("Error: File service not available");
                 return;
             }
 
@@ -676,7 +643,7 @@ public class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            AppendToConsole($"Error selecting file/folder: {ex.Message}");
+            AppendToFTPConsole($"Error selecting file/folder: {ex.Message}");
             UpdateStatus("Error selecting file/folder", temporary: true);
         }
     }
@@ -745,7 +712,7 @@ public class MainWindowViewModel : ViewModelBase
             UpdateStatus($"Browsing directory on {server.DisplayName} via {protocol}...");
             string path = RemoteBrowsePath?.Trim() ?? "";
             string result = await ListDirectoryWithCorrectServiceAsync(server, path);
-            AppendToConsole(result);
+            AppendToFTPConsole(result);
             UpdateStatus("Directory listing complete");
         }
         catch (Exception ex)
@@ -754,11 +721,19 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void AppendToConsole(string text)
+    private void AppendToRCONConsole(string text)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            ConsoleOutput += text + Environment.NewLine;
+            RconConsoleOutput += text + Environment.NewLine;
+        });
+    }
+
+    private void AppendToFTPConsole(string text, bool isRcon = true)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            FtpConsoleOutput += text + Environment.NewLine;
         });
     }
 

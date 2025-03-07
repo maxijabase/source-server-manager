@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
 using SourceServerManager.Services;
 using SourceServerManager.ViewModels;
 using System;
@@ -8,10 +10,16 @@ namespace SourceServerManager.Views;
 
 public partial class MainWindow : Window
 {
+    private TextBox _rconConsoleTextBox;
+    private TextBox _ftpConsoleTextBox;
+    private string _lastRconConsoleText = string.Empty;
+    private string _lastFtpConsoleText = string.Empty;
+
     public MainWindow()
     {
         InitializeComponent();
-
+        _rconConsoleTextBox = this.FindControl<TextBox>("RconConsoleTextBox");
+        _ftpConsoleTextBox = this.FindControl<TextBox>("FtpConsoleTextBox");
         // Use the Opened event which fires after DataContext is set
         Opened += MainWindow_Opened;
     }
@@ -21,7 +29,42 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel viewModel)
         {
             viewModel.SetFilesService(new FilesService(this));
+            viewModel.PropertyChanged += ViewModel_PropertyChanged;
         }
+    }
+
+    private void ViewModel_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainWindowViewModel.RconConsoleOutput))
+        {
+            ScrollToEnd(_rconConsoleTextBox, ((MainWindowViewModel)DataContext).RconConsoleOutput);
+        }
+        else if (e.PropertyName == nameof(MainWindowViewModel.FtpConsoleOutput))
+        {
+            ScrollToEnd(_ftpConsoleTextBox, ((MainWindowViewModel)DataContext).FtpConsoleOutput);
+        }
+    }
+
+    private void ScrollToEnd(TextBox textBox, string text)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (textBox != null && !string.IsNullOrEmpty(text))
+            {
+                textBox.CaretIndex = text.Length;
+            }
+        });
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        // Clean up event handlers
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        }
+
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void OnCommandInputKeyDown(object sender, KeyEventArgs e)
