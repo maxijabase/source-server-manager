@@ -88,7 +88,13 @@
 								 Background="#1E1E1E"
 								 Foreground="#DCDCDC"
 								 CaretBrush="#FFFFFF"
-								 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+								 ScrollViewer.VerticalScrollBarVisibility="Auto">
+							<TextBox.Styles>
+								<Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+									<Setter Property="Background" Value="#1E1E1E"/>
+								</Style>
+							</TextBox.Styles>
+						</TextBox>
 
 						<!-- Command input -->
 						<DockPanel Grid.Row="1" Margin="10">
@@ -119,7 +125,7 @@
 						</Grid>
 						<Grid Grid.Row="3" RowDefinitions="Auto,*">
 							<Button Grid.Row="0" Content="Upload" Command="{Binding UploadFileCommand}" HorizontalAlignment="Right" Margin="0,5"/>
-							<!-- Update this TextBox to match the RCON console style -->
+							<!-- FTP Console -->
 							<TextBox Grid.Row="1"
 									 Name="FtpConsoleTextBox"
 									 Text="{Binding FtpConsoleOutput}"
@@ -131,7 +137,13 @@
 									 Background="#1E1E1E"
 									 Foreground="#DCDCDC"
 									 CaretBrush="#FFFFFF"
-									 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+									 ScrollViewer.VerticalScrollBarVisibility="Auto">
+								<TextBox.Styles>
+									<Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+										<Setter Property="Background" Value="#1E1E1E"/>
+									</Style>
+								</TextBox.Styles>
+							</TextBox>
 						</Grid>
 					</Grid>
 				</TabItem>
