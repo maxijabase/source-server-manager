@@ -37,9 +37,25 @@ jobs:
         $manifestPath = "SourceServerManager/app.manifest"
         $version = "${{ steps.tag.outputs.version }}"
         [xml]$manifest = Get-Content $manifestPath
+        
+        # Only update the assemblyIdentity version attribute, not XML declaration or manifestVersion
         $manifest.assembly.assemblyIdentity.SetAttribute("version", $version)
-        $manifest.Save($manifestPath)
-        echo "Updated app.manifest version to: $version"
+        
+        # Ensure manifestVersion stays as "1.0" (not the app version)
+        $manifest.assembly.SetAttribute("manifestVersion", "1.0")
+        
+        # Save with proper XML formatting
+        $settings = New-Object System.Xml.XmlWriterSettings
+        $settings.Indent = $true
+        $settings.IndentChars = "  "
+        $settings.NewLineChars = "`n"
+        $settings.Encoding = [System.Text.Encoding]::UTF8
+        
+        $writer = [System.Xml.XmlWriter]::Create($manifestPath, $settings)
+        $manifest.Save($writer)
+        $writer.Close()
+        
+        echo "Updated app.manifest assemblyIdentity version to: $version"
       shell: pwsh
       
     - name: Update version in project file
