@@ -13,7 +13,7 @@ public class ServerConfigurationService
     private readonly string _configFilePath;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public ServerConfigurationService(string configFilePath = null)
+    public ServerConfigurationService(string? configFilePath = null)
     {
         // Use default path if none specified
         _configFilePath = configFilePath ?? Path.Combine(
@@ -23,7 +23,11 @@ public class ServerConfigurationService
         );
 
         // Create directory if it doesn't exist
-        Directory.CreateDirectory(Path.GetDirectoryName(_configFilePath));
+        var configDir = Path.GetDirectoryName(_configFilePath);
+        if (!string.IsNullOrEmpty(configDir))
+        {
+            Directory.CreateDirectory(configDir);
+        }
 
         // Configure JSON serialization options
         _jsonOptions = new JsonSerializerOptions

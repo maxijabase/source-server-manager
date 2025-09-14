@@ -61,7 +61,7 @@ public class ServerStatusService
             }
 
             // Try to get server info
-            InfoResponse serverInfo = null;
+            InfoResponse? serverInfo = null;
 
             try
             {

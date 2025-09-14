@@ -18,12 +18,12 @@ public class MainWindowViewModel : ViewModelBase
     private readonly RconService _rconService;
     private readonly FtpService _ftpService;
     private readonly SftpService _sftpService;
-    private FilesService _filesService;
+    private FilesService? _filesService;
     private readonly ServerConfigurationService _configService;
     private readonly ServerStatusService _statusService;
     private readonly CommandHistoryService _commandHistoryService;
     private readonly Timer _statusUpdateTimer;
-    private ServerConfig _serverBeingEdited;
+    private ServerConfig? _serverBeingEdited;
     private readonly Timer _statusClearTimer;
     private readonly object _statusLock = new();
 
@@ -71,8 +71,8 @@ public class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _remoteBrowsePath, value);
     }
 
-    private ServerConfig _selectedServer;
-    public ServerConfig SelectedServer
+    private ServerConfig? _selectedServer;
+    public ServerConfig? SelectedServer
     {
         get => _selectedServer;
         set => this.RaiseAndSetIfChanged(ref _selectedServer, value);
@@ -199,7 +199,7 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void ClearStatusCallback(object state)
+    private void ClearStatusCallback(object? state)
     {
         Dispatcher.UIThread.Post(() =>
         {
@@ -323,13 +323,16 @@ public class MainWindowViewModel : ViewModelBase
         // Exit edit mode
         IsEditingServer = false;
 
-        UpdateStatus($"Server configuration saved: {SelectedServer.DisplayName}");
+        UpdateStatus($"Server configuration saved: {SelectedServer?.DisplayName ?? "Unknown"}");
 
         // Save the configuration
         Task.Run(SaveConfigAsync);
 
         // Try to update server status
-        Task.Run(async () => await _statusService.UpdateServerInfoAsync(SelectedServer));
+        if (SelectedServer != null)
+        {
+            Task.Run(async () => await _statusService.UpdateServerInfoAsync(SelectedServer));
+        }
     }
 
     private void CancelEdit()

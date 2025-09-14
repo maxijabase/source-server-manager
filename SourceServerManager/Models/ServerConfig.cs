@@ -23,7 +23,7 @@ public class ServerConfig : INotifyPropertyChanged
     private string _currentMap = string.Empty;
     private string _serverHostname = string.Empty;
 
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public enum FileTransferProtocol
     {
@@ -31,12 +31,12 @@ public class ServerConfig : INotifyPropertyChanged
         SFTP
     }
 
-    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
-    protected bool SetField<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+    protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (Equals(field, value)) return false;
         field = value;

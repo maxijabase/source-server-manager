@@ -10,8 +10,8 @@ namespace SourceServerManager.Views;
 
 public partial class MainWindow : Window
 {
-    private TextBox _rconConsoleTextBox;
-    private TextBox _ftpConsoleTextBox;
+    private TextBox? _rconConsoleTextBox;
+    private TextBox? _ftpConsoleTextBox;
     private string _lastRconConsoleText = string.Empty;
     private string _lastFtpConsoleText = string.Empty;
 
@@ -33,19 +33,21 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ViewModel_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainWindowViewModel.RconConsoleOutput))
         {
-            ScrollToEnd(_rconConsoleTextBox, ((MainWindowViewModel)DataContext).RconConsoleOutput);
+            if (DataContext is MainWindowViewModel vm)
+                ScrollToEnd(_rconConsoleTextBox, vm.RconConsoleOutput);
         }
         else if (e.PropertyName == nameof(MainWindowViewModel.FtpConsoleOutput))
         {
-            ScrollToEnd(_ftpConsoleTextBox, ((MainWindowViewModel)DataContext).FtpConsoleOutput);
+            if (DataContext is MainWindowViewModel vm)
+                ScrollToEnd(_ftpConsoleTextBox, vm.FtpConsoleOutput);
         }
     }
 
-    private void ScrollToEnd(TextBox textBox, string text)
+    private void ScrollToEnd(TextBox? textBox, string text)
     {
         Dispatcher.UIThread.Post(() =>
         {
