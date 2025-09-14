@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+using SourceServerManager.Services;
 
 namespace SourceServerManager.Models;
 
@@ -63,10 +64,60 @@ public class ServerConfig : INotifyPropertyChanged
         set => SetField(ref _rconPort, value);
     }
 
+    [JsonIgnore]
     public string RconPassword
     {
+        get 
+        { 
+            // If password is encrypted, decrypt it for UI usage
+            if (!string.IsNullOrEmpty(_rconPassword) && EncryptionService.IsEncrypted(_rconPassword))
+            {
+                try
+                {
+                    return EncryptionService.DecryptString(_rconPassword);
+                }
+                catch
+                {
+                    // If decryption fails, return empty string
+                    return string.Empty;
+                }
+            }
+            // Return as-is (either plain text for migration, or empty)
+            return _rconPassword;
+        }
+        set 
+        {
+            var currentDecrypted = RconPassword;
+            if (!string.Equals(currentDecrypted, value))
+            {
+                // Encrypt and store the password
+                if (!string.IsNullOrEmpty(value))
+                {
+                    try
+                    {
+                        _rconPassword = EncryptionService.EncryptString(value);
+                    }
+                    catch
+                    {
+                        // If encryption fails, store as plain text (fallback)
+                        _rconPassword = value;
+                    }
+                }
+                else
+                {
+                    _rconPassword = string.Empty;
+                }
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    // JSON property - stores the encrypted password directly
+    [JsonPropertyName("rconPassword")]
+    public string RconPasswordStorage
+    {
         get => _rconPassword;
-        set => SetField(ref _rconPassword, value);
+        set => _rconPassword = value ?? string.Empty;
     }
 
     // FTP settings
@@ -88,10 +139,60 @@ public class ServerConfig : INotifyPropertyChanged
         set => SetField(ref _ftpUsername, value);
     }
 
+    [JsonIgnore]
     public string FtpPassword
     {
+        get 
+        { 
+            // If password is encrypted, decrypt it for UI usage
+            if (!string.IsNullOrEmpty(_ftpPassword) && EncryptionService.IsEncrypted(_ftpPassword))
+            {
+                try
+                {
+                    return EncryptionService.DecryptString(_ftpPassword);
+                }
+                catch
+                {
+                    // If decryption fails, return empty string
+                    return string.Empty;
+                }
+            }
+            // Return as-is (either plain text for migration, or empty)
+            return _ftpPassword;
+        }
+        set 
+        {
+            var currentDecrypted = FtpPassword;
+            if (!string.Equals(currentDecrypted, value))
+            {
+                // Encrypt and store the password
+                if (!string.IsNullOrEmpty(value))
+                {
+                    try
+                    {
+                        _ftpPassword = EncryptionService.EncryptString(value);
+                    }
+                    catch
+                    {
+                        // If encryption fails, store as plain text (fallback)
+                        _ftpPassword = value;
+                    }
+                }
+                else
+                {
+                    _ftpPassword = string.Empty;
+                }
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    // JSON property - stores the encrypted password directly
+    [JsonPropertyName("ftpPassword")]
+    public string FtpPasswordStorage
+    {
         get => _ftpPassword;
-        set => SetField(ref _ftpPassword, value);
+        set => _ftpPassword = value ?? string.Empty;
     }
 
     public string FtpRootDirectory

@@ -65,12 +65,71 @@ public class ServerConfigurationService
 
             // Deserialize the server configurations
             var servers = JsonSerializer.Deserialize<List<ServerConfig>>(json, _jsonOptions);
+            var serverList = servers ?? [];
 
-            return servers ?? [];
+            // Check if migration from plain text passwords is needed
+            bool needsMigration = MigratePlainTextPasswords(serverList);
+
+            // If migration occurred, save the updated configurations
+            if (needsMigration)
+            {
+                await SaveServersAsync(serverList);
+            }
+
+            return serverList;
         }
         catch (Exception ex)
         {
             throw new Exception($"Failed to load server configurations: {ex.Message}", ex);
         }
+    }
+
+    private bool MigratePlainTextPasswords(List<ServerConfig> servers)
+    {
+        bool migrationOccurred = false;
+
+        try
+        {
+            foreach (var server in servers)
+            {
+                bool serverMigrated = false;
+
+                // Check if RCON password needs migration (plain text to encrypted)
+                var currentRconPassword = GetStoredPassword(server, "_rconPassword");
+                if (!string.IsNullOrEmpty(currentRconPassword) && !EncryptionService.IsEncrypted(currentRconPassword))
+                {
+                    server.RconPassword = currentRconPassword; // This will encrypt it automatically
+                    serverMigrated = true;
+                }
+
+                // Check if FTP password needs migration (plain text to encrypted)
+                var currentFtpPassword = GetStoredPassword(server, "_ftpPassword");
+                if (!string.IsNullOrEmpty(currentFtpPassword) && !EncryptionService.IsEncrypted(currentFtpPassword))
+                {
+                    server.FtpPassword = currentFtpPassword; // This will encrypt it automatically
+                    serverMigrated = true;
+                }
+
+                if (serverMigrated)
+                {
+                    migrationOccurred = true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't fail the entire load process
+            Console.WriteLine($"Warning: Password migration failed: {ex.Message}");
+        }
+
+        return migrationOccurred;
+    }
+
+    private string GetStoredPassword(ServerConfig server, string fieldName)
+    {
+        // Access the private field using reflection to get stored password
+        var field = typeof(ServerConfig).GetField(fieldName, 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        return field?.GetValue(server) as string ?? string.Empty;
     }
 }
