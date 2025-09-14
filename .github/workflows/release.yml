@@ -36,9 +36,9 @@ jobs:
       run: |
         $manifestPath = "SourceServerManager/app.manifest"
         $version = "${{ steps.tag.outputs.version }}"
-        $content = Get-Content $manifestPath -Raw
-        $content = $content -replace 'version="[\d\.]+"', "version=`"$version`""
-        Set-Content $manifestPath -Value $content -NoNewline
+        [xml]$manifest = Get-Content $manifestPath
+        $manifest.assembly.assemblyIdentity.SetAttribute("version", $version)
+        $manifest.Save($manifestPath)
         echo "Updated app.manifest version to: $version"
       shell: pwsh
       
