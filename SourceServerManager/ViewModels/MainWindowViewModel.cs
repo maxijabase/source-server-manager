@@ -118,6 +118,8 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand DuplicateSelectedServerCommand { get; }
     public ICommand DeleteSelectedServerCommand { get; }
     public ICommand RefreshSelectedServerCommand { get; }
+    public ICommand TestRconConnectionCommand { get; }
+    public ICommand TestFtpConnectionCommand { get; }
 
     public MainWindowViewModel()
     {
@@ -161,6 +163,9 @@ public class MainWindowViewModel : ViewModelBase
 
         RefreshSelectedServerCommand = ReactiveCommand.Create(
             async () => { if (SelectedServer != null) await _statusService.UpdateServerInfoAsync(SelectedServer); });
+
+        TestRconConnectionCommand = ReactiveCommand.CreateFromTask(TestRconConnectionAsync);
+        TestFtpConnectionCommand = ReactiveCommand.CreateFromTask(TestFtpConnectionAsync);
 
         // Load saved servers
         Task.Run(LoadSavedServersAsync);
@@ -755,6 +760,121 @@ public class MainWindowViewModel : ViewModelBase
         {
             FtpConsoleOutput += text + Environment.NewLine;
         });
+    }
+
+    private async Task TestRconConnectionAsync()
+    {
+        if (SelectedServer == null)
+        {
+            UpdateStatus("Error: No server selected", false);
+            return;
+        }
+
+        // Validate RCON fields
+        if (string.IsNullOrWhiteSpace(SelectedServer.IpAddress))
+        {
+            UpdateStatus("Error: IP Address is required for RCON test", false);
+            return;
+        }
+
+        if (SelectedServer.RconPort <= 0 || SelectedServer.RconPort > 65535)
+        {
+            UpdateStatus("Error: RCON Port must be between 1 and 65535", false);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SelectedServer.RconPassword))
+        {
+            UpdateStatus("Error: RCON Password is required for RCON test", false);
+            return;
+        }
+
+        try
+        {
+            UpdateStatus($"Testing RCON connection to {SelectedServer.IpAddress}:{SelectedServer.RconPort}...");
+            
+            // Test with a simple status command
+            var response = await _rconService.ExecuteCommandAsync(SelectedServer, "status");
+            
+            if (!string.IsNullOrEmpty(response) && !response.Contains("Unable to connect"))
+            {
+                UpdateStatus($"✅ RCON connection successful to {SelectedServer.DisplayName}", true, 5000);
+            }
+            else
+            {
+                UpdateStatus($"❌ RCON connection failed: Invalid response received", false);
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"❌ RCON connection failed: {ex.Message}", false);
+        }
+    }
+
+    private async Task TestFtpConnectionAsync()
+    {
+        if (SelectedServer == null)
+        {
+            UpdateStatus("Error: No server selected", false);
+            return;
+        }
+
+        // Validate FTP fields
+        if (string.IsNullOrWhiteSpace(SelectedServer.FtpHost))
+        {
+            UpdateStatus("Error: FTP Host is required for FTP test", false);
+            return;
+        }
+
+        if (SelectedServer.FtpPort <= 0 || SelectedServer.FtpPort > 65535)
+        {
+            UpdateStatus("Error: FTP Port must be between 1 and 65535", false);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SelectedServer.FtpUsername))
+        {
+            UpdateStatus("Error: FTP Username is required for FTP test", false);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SelectedServer.FtpPassword))
+        {
+            UpdateStatus("Error: FTP Password is required for FTP test", false);
+            return;
+        }
+
+        try
+        {
+            string protocol = SelectedServer.FtpProtocol == FileTransferProtocol.SFTP ? "SFTP" : "FTP";
+            UpdateStatus($"Testing {protocol} connection to {SelectedServer.FtpHost}:{SelectedServer.FtpPort}...");
+
+            string result;
+            if (SelectedServer.FtpProtocol == FileTransferProtocol.SFTP)
+            {
+                // Test SFTP connection by listing the root directory
+                result = await _sftpService.ListDirectoryAsync(SelectedServer, "/");
+            }
+            else
+            {
+                // Test FTP connection by listing the root directory
+                result = await _ftpService.ListDirectoryAsync(SelectedServer, "/");
+            }
+
+            if (!string.IsNullOrEmpty(result) && !result.Contains("Error") && !result.Contains("Failed"))
+            {
+                UpdateStatus($"✅ {protocol} connection successful to {SelectedServer.DisplayName}", true, 5000);
+            }
+            else
+            {
+                UpdateStatus($"❌ {protocol} connection failed: Unable to list directory", false);
+            }
+        }
+        catch (Exception ex)
+        {
+            string protocol = SelectedServer.FtpProtocol == FileTransferProtocol.SFTP ? "SFTP" : "FTP";
+            UpdateStatus($"❌ {protocol} connection failed: {ex.Message}", false);
+        }
     }
 
     protected override void Dispose(bool disposing)

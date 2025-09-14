@@ -181,7 +181,7 @@
 							</Grid>
 
 							<!-- Server config fields - without Name field -->
-							<Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+							<Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
 								IsVisible="{Binding SelectedServer}" Margin="0,15,0,0">
 								<!-- Connection settings -->
 								<TextBlock Grid.Row="0" Grid.Column="0" Text="IP Address:" Margin="0,5,5,5"/>
@@ -199,12 +199,20 @@
 										 PasswordChar="*" Margin="0,5"
 										 IsReadOnly="{Binding !IsEditingServer}"/>
 
+								<!-- RCON Test Button -->
+								<Button Grid.Row="4" Grid.Column="1" Content="Test RCON Connection" 
+										Command="{Binding TestRconConnectionCommand}" 
+										IsVisible="{Binding SelectedServer}"
+										HorizontalAlignment="Right" 
+										Margin="0,5,0,10" 
+										Padding="10,3"/>
+
 								<!-- FTP settings -->
-								<TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Text="FTP Settings"
+								<TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Text="FTP Settings"
 										   FontWeight="Bold" Margin="0,15,0,5"/>
 
-								<TextBlock Grid.Row="5" Grid.Column="0" Text="Protocol:" Margin="0,5,5,5"/>
-								<ComboBox Grid.Row="5" Grid.Column="1"
+								<TextBlock Grid.Row="6" Grid.Column="0" Text="Protocol:" Margin="0,5,5,5"/>
+								<ComboBox Grid.Row="6" Grid.Column="1"
 										  SelectedIndex="{Binding SelectedServer.FtpProtocol}"
 										  IsEnabled="{Binding IsEditingServer}"
 										  Margin="0,5">
@@ -212,25 +220,33 @@
 									<ComboBoxItem>SFTP</ComboBoxItem>
 								</ComboBox>
 
-								<TextBlock Grid.Row="6" Grid.Column="0" Text="FTP Host:" Margin="0,5,5,5"/>
-								<TextBox Grid.Row="6" Grid.Column="1" Text="{Binding SelectedServer.FtpHost}" Margin="0,5"
+								<TextBlock Grid.Row="7" Grid.Column="0" Text="FTP Host:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="7" Grid.Column="1" Text="{Binding SelectedServer.FtpHost}" Margin="0,5"
 										 IsReadOnly="{Binding !IsEditingServer}"/>
 
-								<TextBlock Grid.Row="7" Grid.Column="0" Text="FTP Port:" Margin="0,5,5,5"/>
-								<TextBox Grid.Row="7" Grid.Column="1" Text="{Binding SelectedServer.FtpPort}" Margin="0,5"
+								<TextBlock Grid.Row="8" Grid.Column="0" Text="FTP Port:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="8" Grid.Column="1" Text="{Binding SelectedServer.FtpPort}" Margin="0,5"
 										 IsReadOnly="{Binding !IsEditingServer}"/>
 
-								<TextBlock Grid.Row="8" Grid.Column="0" Text="FTP Username:" Margin="0,5,5,5"/>
-								<TextBox Grid.Row="8" Grid.Column="1" Text="{Binding SelectedServer.FtpUsername}" Margin="0,5"
+								<TextBlock Grid.Row="9" Grid.Column="0" Text="FTP Username:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="9" Grid.Column="1" Text="{Binding SelectedServer.FtpUsername}" Margin="0,5"
 										 IsReadOnly="{Binding !IsEditingServer}"/>
 
-								<TextBlock Grid.Row="9" Grid.Column="0" Text="FTP Password:" Margin="0,5,5,5"/>
-								<TextBox Grid.Row="9" Grid.Column="1" Text="{Binding SelectedServer.FtpPassword}"
+								<TextBlock Grid.Row="10" Grid.Column="0" Text="FTP Password:" Margin="0,5,5,5"/>
+								<TextBox Grid.Row="10" Grid.Column="1" Text="{Binding SelectedServer.FtpPassword}"
 										 PasswordChar="*" Margin="0,5"
 										 IsReadOnly="{Binding !IsEditingServer}"/>
 
+								<!-- FTP Test Button -->
+								<Button Grid.Row="11" Grid.Column="1" Content="Test FTP Connection" 
+										Command="{Binding TestFtpConnectionCommand}" 
+										IsVisible="{Binding SelectedServer}"
+										HorizontalAlignment="Right" 
+										Margin="0,5,0,10" 
+										Padding="10,3"/>
+
 								<!-- Action buttons (conditional display based on edit mode) -->
-								<StackPanel Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2"
+								<StackPanel Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2"
 											Orientation="Horizontal" HorizontalAlignment="Right"
 											Margin="0,15,0,0">
 									<!-- Buttons visible when NOT in edit mode -->
