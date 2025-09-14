@@ -13,6 +13,65 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Get tag name and version
+      id: tag
+      run: |
+        $tagName = $env:GITHUB_REF -replace 'refs/tags/', ''
+        $version = $tagName -replace '^v', ''
+        if ($version -notmatch '^\d+\.\d+(\.\d+)?(\.\d+)?$') {
+          $version = "$version.0.0"
+        }
+        if (($version.Split('.').Count) -eq 2) {
+          $version = "$version.0.0"
+        } elseif (($version.Split('.').Count) -eq 3) {
+          $version = "$version.0"
+        }
+        echo "tag_name=$tagName" >> $env:GITHUB_OUTPUT
+        echo "release_name=$tagName" >> $env:GITHUB_OUTPUT
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        echo "Version will be set to: $version"
+      shell: pwsh
+      
+    - name: Update version in app.manifest
+      run: |
+        $manifestPath = "SourceServerManager/app.manifest"
+        $version = "${{ steps.tag.outputs.version }}"
+        $content = Get-Content $manifestPath -Raw
+        $content = $content -replace 'version="[\d\.]+"', "version=`"$version`""
+        Set-Content $manifestPath -Value $content -NoNewline
+        echo "Updated app.manifest version to: $version"
+      shell: pwsh
+      
+    - name: Update version in project file
+      run: |
+        $projectPath = "SourceServerManager/SourceServerManager.csproj"
+        $version = "${{ steps.tag.outputs.version }}"
+        [xml]$project = Get-Content $projectPath
+        
+        # Find or create the first PropertyGroup
+        $propertyGroup = $project.Project.PropertyGroup[0]
+        if ($null -eq $propertyGroup) {
+          $propertyGroup = $project.CreateElement("PropertyGroup")
+          $project.Project.AppendChild($propertyGroup) | Out-Null
+        }
+        
+        # Add or update version properties
+        $versionProperties = @('Version', 'AssemblyVersion', 'FileVersion', 'AssemblyFileVersion')
+        foreach ($prop in $versionProperties) {
+          $existingProp = $propertyGroup.SelectSingleNode($prop)
+          if ($null -eq $existingProp) {
+            $newProp = $project.CreateElement($prop)
+            $newProp.InnerText = $version
+            $propertyGroup.AppendChild($newProp) | Out-Null
+          } else {
+            $existingProp.InnerText = $version
+          }
+        }
+        
+        $project.Save($projectPath)
+        echo "Updated project file version to: $version"
+      shell: pwsh
+      
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
@@ -35,14 +94,6 @@ jobs:
         cd SourceServerManager/Installer
         makensis Installer.nsi
         
-    - name: Get tag name
-      id: tag
-      run: |
-        $tagName = $env:GITHUB_REF -replace 'refs/tags/', ''
-        echo "tag_name=$tagName" >> $env:GITHUB_OUTPUT
-        echo "release_name=$tagName" >> $env:GITHUB_OUTPUT
-      shell: pwsh
-      
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
