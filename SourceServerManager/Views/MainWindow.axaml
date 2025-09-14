@@ -19,7 +19,8 @@
 			<SplitView.Pane>
 				<ListBox x:Name="ServerListBox"
 					 ItemsSource="{Binding Servers}"
-					 SelectedItem="{Binding SelectedServer}">
+					 SelectedItem="{Binding SelectedServer}"
+					 IsEnabled="{Binding !IsEditingServer}">
 					<ListBox.ContextMenu>
 						<ContextMenu>
 							<MenuItem Header="Select All" Command="{Binding SelectAllServersCommand}"/>
